@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#E8F4FD">
+    <link rel="manifest" href="data:application/json,{}">
+    <title>Свадебные фото</title>
+    <style>
+        :root {
+            --bg: #F5FAFF;
+            --white: #FFFFFF;
+            --border: #A8D5F0;
+            --accent: #5BA4D6;
+            --accent-hover: #3D8CBD;
+            --text: #1A3A4F;
+            --text-light: #3D6B8A;
+            --text-muted: #5A7D94;
+            --shadow: rgba(91, 164, 214, 0.15);
+            --radius: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            background: var(--bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100dvh;
+            padding: 16px;
+        }
+
+        /* ===== ПОПАП ===== */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(26, 58, 79, 0.5);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .popup {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 32px 24px 24px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 16px 48px rgba(26, 58, 79, 0.25);
+            border: 2px solid var(--border);
+            animation: slideUp 0.35s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .popup-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        .popup h2 {
+            color: var(--text);
+            font-size: 20px;
+            margin-bottom: 14px;
+            line-height: 1.4;
+        }
+        .popup p {
+            color: var(--text-muted);
+            font-size: 14.5px;
+            line-height: 1.7;
+            margin-bottom: 24px;
+            padding: 0 4px;
+        }
+        .popup .accent-text {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .popup-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-popup {
+            display: block;
+            width: 100%;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 16px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            text-align: center;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(91, 164, 214, 0.35);
+        }
+        .btn-primary:active {
+            background: var(--accent-hover);
+            transform: scale(0.97);
+        }
+        .btn-secondary {
+            background: var(--white);
+            color: var(--accent);
+            border: 2px solid var(--border);
+        }
+        .btn-secondary:active {
+            background: #E8F4FD;
+            transform: scale(0.97);
+        }
+
+        /* ===== ОСНОВНОЕ ПРИЛОЖЕНИЕ ===== */
+        .app {
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .frame {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 12px;
+            box-shadow: 0 8px 32px var(--shadow);
+            border: 3px solid var(--border);
+        }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 3 / 4;
+            background: #000;
+            border-radius: calc(var(--radius) - 4px);
+            overflow: hidden;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .capture-flash {
+            position: absolute;
+            inset: 0;
+            background: #fff;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.08s ease-out;
+            z-index: 2;
+        }
+        .capture-flash.active {
+            opacity: 0.7;
+        }
+
+        .status-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(26, 58, 79, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 20px;
+            z-index: 3;
+            opacity: 0;
+            transform: translateY(-6px);
+            transition: all 0.25s ease;
+        }
+        .status-badge.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .status-badge.success {
+            background: rgba(72, 174, 124, 0.85);
+        }
+        .status-badge.error {
+            background: rgba(220, 80, 80, 0.85);
+        }
+
+        .controls {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn {
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-switch {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--white);
+            border: 2px solid var(--border);
+            color: var(--accent);
+            font-size: 22px;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        .btn-switch:active {
+            background: #E8F4FD;
+            transform: scale(0.94);
+        }
+
+        .btn-capture {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: var(--white);
+            border: 4px solid var(--accent);
+            box-shadow: 0 6px 24px rgba(91, 164, 214, 0.3);
+            position: relative;
+        }
+        .btn-capture::after {
+            content: '';
+            position: absolute;
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            background: var(--accent);
+            transition: all 0.15s ease;
+        }
+        .btn-capture:active::after {
+            width: 44px;
+            height: 44px;
+            background: var(--accent-hover);
+        }
+        .btn-capture:disabled {
+            opacity: 0.5;
+            pointer-events: none;
+            border-color: #B0C8D6;
+        }
+        .btn-capture:disabled::after {
+            background: #B0C8D6;
+        }
+
+        .btn-album {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--white);
+            border: 2px solid var(--border);
+            color: var(--accent);
+            font-size: 20px;
+            box-shadow: 0 4px 12px var(--shadow);
+            text-decoration: none;
+        }
+        .btn-album:active {
+            background: #E8F4FD;
+            transform: scale(0.94);
+        }
+
+        .hint {
+            text-align: center;
+            color: var(--text-light);
+            font-size: 14px;
+            line-height: 1.5;
+            letter-spacing: 0.3px;
+        }
+        .hint .heart {
+            color: #D64545;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== ПРИВЕТСТВЕННЫЙ ПОПАП ===== -->
+    <div class="overlay" id="welcomeOverlay">
+        <div class="popup">
+            <div class="popup-icon">💙</div>
+            <h2>Дорогие гости!</h2>
+            <p>
+                Мы рады вас приветствовать на нашей свадьбе!<br><br>
+                Каждое Ваше фото идёт в <span class="accent-text">общий альбом свадьбы</span>.
+                Каждый снимок, сделанный здесь, появляется в общем Telegram-канале всех гостей.
+                Это единая галерея праздника.<br><br>
+                <span class="accent-text">Снимайте, смотрите чужие кадры, сохраняйте лучшие моменты вечера.</span>
+            </p>
+            <div class="popup-buttons">
+                <button class="btn-popup btn-primary" id="startCameraBtn">📸 Начать снимать</button>
+                <a class="btn-popup btn-secondary" id="albumLink" href="#" target="_blank" rel="noopener">📂 Смотреть альбом</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ОСНОВНОЕ ПРИЛОЖЕНИЕ ===== -->
+    <div class="app" id="mainApp">
+        <div class="frame">
+            <div class="camera-container">
+                <video id="video" autoplay playsinline muted></video>
+                <div class="capture-flash" id="flash"></div>
+                <div class="status-badge" id="status"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-switch" id="switchCamera" title="Переключить камеру">🔄</button>
+            <button class="btn btn-capture" id="captureBtn" title="Сделать фото"></button>
+            <a class="btn btn-album" id="albumBtnSmall" href="#" target="_blank" rel="noopener" title="Смотреть альбом">📂</a>
+        </div>
+
+        <p class="hint">
+            Нажми на кнопку, чтобы сделать фото<br>
+            <span class="heart">♥</span> Оно сразу появится в свадебном альбоме
+        </p>
+    </div>
+
+    <script>
+        // ============ НАСТРОЙКИ ============
+        const BOT_TOKEN = '8764848608:AAGpKHrsbYoQBS2G_CYYPXs-Bx9MMsbwYgQ';
+        const CHAT_ID = '-1004370141473';          // например: '-1002271234567'
+        const ALBUM_LINK = 'https://t.me/+LfhM38FMQDVhMmMy'; // например: 'https://t.me/+abcdef123456'
+
+        // ============ DOM-элементы ============
+        const welcomeOverlay = document.getElementById('welcomeOverlay');
+        const startCameraBtn = document.getElementById('startCameraBtn');
+        const albumLink = document.getElementById('albumLink');
+        const albumBtnSmall = document.getElementById('albumBtnSmall');
+        const video = document.getElementById('video');
+        const flash = document.getElementById('flash');
+        const statusBadge = document.getElementById('status');
+        const captureBtn = document.getElementById('captureBtn');
+        const switchBtn = document.getElementById('switchCamera');
+
+        // Устанавливаем ссылку на альбом в обе кнопки
+        albumLink.href = ALBUM_LINK;
+        albumBtnSmall.href = ALBUM_LINK;
+
+        // ============ СОСТОЯНИЕ ============
+        let stream = null;
+        let currentFacingMode = 'user';
+        let isCapturing = false;
+
+        // ============ ЗАПУСК КАМЕРЫ ============
+        async function startCamera(facingMode = currentFacingMode) {
+            try {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: facingMode,
+                        width: { ideal: 1920 },
+                        height: { ideal: 1440 }
+                    },
+                    audio: false
+                });
+                video.srcObject = stream;
+                currentFacingMode = facingMode;
+            } catch (err) {
+                console.error('Ошибка доступа к камере:', err);
+                alert('Не удалось получить доступ к камере. Проверьте разрешения.');
+            }
+        }
+
+        // ============ ПОПАП: НАЧАТЬ СНИМАТЬ ============
+        startCameraBtn.addEventListener('click', async () => {
+            welcomeOverlay.style.display = 'none';
+            await startCamera();
+        });
+
+        // ============ ПЕРЕКЛЮЧЕНИЕ КАМЕРЫ ============
+        switchBtn.addEventListener('click', () => {
+            const newMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            startCamera(newMode);
+        });
+
+        // ============ ОТПРАВКА В TELEGRAM ============
+        async function sendPhotoToTelegram(blob) {
+            const formData = new FormData();
+            formData.append('chat_id', CHAT_ID);
+            formData.append('photo', blob, 'wedding_photo.jpg');
+
+            const response = await fetch(
+                `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
+                { method: 'POST', body: formData }
+            );
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.description || 'Ошибка отправки');
+            }
+            return await response.json();
+        }
+
+        // ============ СТАТУС ============
+        function showStatus(message, type = 'info') {
+            statusBadge.textContent = message;
+            statusBadge.className = 'status-badge show ' + type;
+            clearTimeout(statusBadge._timeout);
+            statusBadge._timeout = setTimeout(() => {
+                statusBadge.classList.remove('show');
+            }, 2000);
+        }
+
+        // ============ ВСПЫШКА ============
+        function triggerFlash() {
+            flash.classList.add('active');
+            setTimeout(() => flash.classList.remove('active'), 120);
+        }
+
+        // ============ ЗАХВАТ ФОТО ============
+        captureBtn.addEventListener('click', async () => {
+            if (isCapturing) return;
+            if (!stream) {
+                showStatus('Нет доступа к камере', 'error');
+                return;
+            }
+
+            isCapturing = true;
+            captureBtn.disabled = true;
+
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+
+                if (currentFacingMode === 'user') {
+                    ctx.translate(canvas.width, 0);
+                    ctx.scale(-1, 1);
+                }
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                triggerFlash();
+
+                const blob = await new Promise(resolve => {
+                    canvas.toBlob(resolve, 'image/jpeg', 0.82);
+                });
+
+                if (!blob) throw new Error('Не удалось создать изображение');
+
+                showStatus('Отправка...', 'info');
+                await sendPhotoToTelegram(blob);
+                showStatus('✓ Отправлено!', 'success');
+
+            } catch (err) {
+                console.error('Ошибка:', err);
+                showStatus('Ошибка отправки', 'error');
+            } finally {
+                setTimeout(() => {
+                    isCapturing = false;
+                    captureBtn.disabled = false;
+                }, 2500);
+            }
+        });
+    </script>
+</body>
+</html>
